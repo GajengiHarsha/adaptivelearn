@@ -46,8 +46,8 @@ app.use('/api/quiz', require('./backend/routes/quiz'));
 app.use('/api/learning-path', require('./backend/routes/learningPath'));
 app.use('/api/profile', require('./backend/routes/profile'));
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, 'frontend')));
+// Serve static frontend files without serving index.html by default
+app.use(express.static(path.join(__dirname, 'frontend'), { index: false }));
 
 // Health check
 app.get('/healthz', (req, res) => {
@@ -64,11 +64,14 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
 });
 
-// Fallback for any unknown paths (e.g., SPA routing)
+// Fallback for any unknown non-API routes (serve login.html for SPA routing)
 app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    // Return JSON 404 for unknown API routes
+    return res.status(404).json({ error: 'API endpoint not found' });
+  }
   res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
 });
-
 
 // Start server
 const PORT = process.env.PORT || 5000;
