@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AdaptiveLearn - Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-sky-100 via-indigo-100 to-purple-200 min-h-screen text-gray-800 font-sans overflow-x-hidden transition-colors duration-300 ease-in-out">
+
+  <!-- Header -->
+  <header class="flex justify-between items-center px-6 py-4 bg-white shadow-md fixed w-full top-0 z-10">
+    <button id="menuBtn" class="text-2xl text-indigo-600 hover:scale-105 transition-transform duration-200">☰</button>
+    <h1 class="text-xl font-bold text-indigo-600 tracking-wide">AdaptiveLearn</h1>
+    <div class="w-8"></div> <!-- Spacer for alignment -->
+  </header>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed top-0 left-0 w-64 h-full bg-gradient-to-br from-indigo-200 via-purple-100 to-pink-100 shadow-lg transform -translate-x-full transition-transform duration-300 z-30 p-6 space-y-6">
+    <button id="closeSidebar" class="text-xl text-red-500 font-bold absolute top-4 right-4">&times;</button>
+    <nav class="space-y-4 mt-8">
+      <a href="/dashboard.html" class="block text-indigo-700 font-semibold text-lg hover:text-white hover:bg-indigo-500 px-4 py-2 rounded transition-all duration-200">Dashboard</a>
+      <a href="#" class="block text-red-500 font-semibold text-lg hover:text-white hover:bg-red-500 px-4 py-2 rounded transition-all duration-200" onclick="logout()">Logout</a>
+    </nav>
+  </aside>
+
+  <!-- Main -->
+  <main class="pt-24 px-4 max-w-7xl mx-auto space-y-16">
+    <!-- Welcome Message -->
+    <section class="mt-4">
+      <div class="text-center max-w-xl mx-auto">
+        <h2 class="text-3xl md:text-4xl font-extrabold text-indigo-700">Welcome to AdaptiveLearn!</h2>
+        <p class="text-gray-600 mt-2 text-lg">Your personalized learning journey starts here.</p>
+      </div>
+    </section>    
+
+    <!-- My Courses -->
+    <section>
+      <h2 class="text-2xl font-bold text-indigo-700 mb-4">My Courses</h2>
+      <div id="userCourses" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+      <div class="flex justify-center mt-4 space-x-4">
+        <button id="userShowMoreBtn" class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-all">Show More</button>
+        <button id="userShowLessBtn" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 hidden transition-all">Show Less</button>
+      </div>
+    </section>
+
+    <!-- New Courses -->
+    <section>
+      <h2 class="text-2xl font-bold text-indigo-700 mb-4">New Courses</h2>
+      <input id="searchInput" type="text" placeholder="Search courses..." class="w-full mb-4 px-4 py-2 border rounded focus:ring-2 focus:ring-indigo-400 focus:outline-none" />
+      <div id="newCourses" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6"></div>
+      <div class="flex justify-center mt-4 space-x-4">
+        <button id="showMoreBtn" class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-all">Show More</button>
+        <button id="showLessBtn" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 hidden transition-all">Show Less</button>
+      </div>
+    </section>
+
+    <!-- Recommended Lessons -->
+    <section>
+      <h2 class="text-2xl font-bold text-indigo-700 mb-4">Recommended Lessons</h2>
+      <div id="recommendedLessons" class="mt-6"></div>
+    </section>
+  </main>
+
+  <!-- Back to Top -->
+  <button id="backToTop" class="fixed bottom-4 right-4 bg-indigo-500 text-white px-4 py-2 rounded-full shadow-lg hidden hover:bg-indigo-600 transition-all">
+    ↑ Top
+  </button>
+  
+
+  <div id="loader" class="hidden fixed inset-0 bg-white/75 flex items-center justify-center z-50">
+      <div class="loader"></div>
+  </div>
+
+  <style>
+    .loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #6366f1;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+    0% { transform: rotate(0deg);}
+    100% { transform: rotate(360deg);}
+    }
+  </style>
+
+<script>
+const BASE_URL = 'http://localhost:5000';
+const token = localStorage.getItem('token');
+let allCourses = [];
+let allUserCourses = [];
+let enrolledIds = [];
+let visibleCourses = 6;
+let visibleUserCourses = 6;
+let searchTimeout;
+
+const userCoursesEl = document.getElementById('userCourses');
+const newCoursesEl = document.getElementById('newCourses');
+const userShowMoreBtn = document.getElementById('userShowMoreBtn');
+const userShowLessBtn = document.getElementById('userShowLessBtn');
+const showMoreBtn = document.getElementById('showMoreBtn');
+const showLessBtn = document.getElementById('showLessBtn');
+const searchInput = document.getElementById('searchInput');
+
+// Sidebar logic
+document.getElementById('menuBtn').addEventListener('click', function() {
+  document.getElementById('sidebar').classList.remove('-translate-x-full');
+});
+document.getElementById('closeSidebar').addEventListener('click', function() {
+  document.getElementById('sidebar').classList.add('-translate-x-full');
+});
+
+// Loader logic
+function showLoader(show) {
+    document.getElementById('loader').classList.toggle('hidden', !show);
+}
+
+// --- Fetch all courses (public) ---
+async function fetchAllCourses() {
+  try {
+    showLoader(true);
+    const res = await fetch(`${BASE_URL}/api/courses`);
+    const data = await res.json();
+    // Store all courses
+    allCourses = Array.isArray(data) ? data : [];
+    // Only show non-enrolled courses
+    renderNewCourses();
+  } catch (err) {
+    console.error('Error fetching courses:', err);
+    allCourses = [];
+    renderNewCourses();
+  } finally {
+    showLoader(false);
+  }
+}
+
+// --- Fetch user courses (protected) ---
+async function fetchUserCourses() {
+  if (!token) {
+    allUserCourses = [];
+    enrolledIds = [];
+    renderUserCourses();
+    return Promise.resolve();
+  }
+  try {
+    showLoader(true);
+    const res = await fetch(`${BASE_URL}/api/courses/my`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await res.json();
+    if (res.ok && Array.isArray(data.courses)) {
+      allUserCourses = data.courses;
+      enrolledIds = data.courses.map(c => c._id); // Make sure this is set!
+      renderUserCourses();
+    }
+  } catch (err) {
+    allUserCourses = [];
+    enrolledIds = [];
+    renderUserCourses();
+  } finally {
+    showLoader(false);
+  }
+  return Promise.resolve();
+}
+
+// --- Render user courses ---
+function renderUserCourses() {
+    userCoursesEl.innerHTML = '';
+    const visible = allUserCourses.slice(0, visibleUserCourses);
+
+    if (visible.length === 0) {
+        userCoursesEl.innerHTML = '<p class="text-gray-600 text-center">No enrolled courses found.</p>';
+        return;
+    }
+
+    visible.forEach(course => {
+        const completed = Array.isArray(course.progress?.completedLessons) ? course.progress.completedLessons.length : 0;
+        const total = Array.isArray(course.lessons) ? course.lessons.length : 0;
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition duration-300 cursor-pointer relative';
+        card.innerHTML = `
+            <div class="p-4 space-y-2">
+                <h3 class="text-lg font-bold text-indigo-700">${course.title}</h3>
+                <p class="text-sm text-gray-600">${course.description}</p>
+                <div class="h-2 bg-gray-200 rounded">
+                    <div class="h-2 bg-indigo-600 rounded" style="width: ${total ? (completed / total) * 100 : 0}%"></div>
+                </div>
+                <p class="text-sm text-gray-600 mt-1">${completed}/${total} Lessons Completed</p>
+                <button class="unenroll-btn mt-2 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition">Unenroll</button>
+            </div>
+        `;
+        card.querySelector('.unenroll-btn').onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm('Are you sure you want to unenroll from this course?')) {
+                await unenrollCourse(course._id);
+            }
+        };
+        card.onclick = () => {
+            window.location.href = `/course-details.html?courseId=${course._id}`;
+        };
+        userCoursesEl.appendChild(card);
+    });
+
+    userShowMoreBtn.classList.toggle('hidden', allUserCourses.length <= visibleUserCourses);
+    userShowLessBtn.classList.toggle('hidden', visibleUserCourses <= 6);
+}
+
+// --- Render new courses (not enrolled) ---
+function renderNewCourses() {
+  newCoursesEl.innerHTML = '';
+  const enrolled = Array.isArray(enrolledIds) ? enrolledIds : [];
+  const filteredCourses = allCourses.filter(course => !enrolledIds.includes(course._id));
+  const visible = filteredCourses.slice(0, visibleCourses);
+
+  if (visible.length === 0) {
+    const searchTerm = searchInput.value;
+    const message = searchTerm 
+      ? `No courses found matching "${searchTerm}"`
+      : 'No new courses available.';
+    newCoursesEl.innerHTML = `<p class="text-gray-600 text-center">${message}</p>`;
+    showMoreBtn.classList.add('hidden');
+    showLessBtn.classList.add('hidden');
+    return;
+  }
+
+  visible.forEach(course => {
+    const card = document.createElement('div');
+    card.className = 'bg-white rounded-xl shadow hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300';
+    card.innerHTML = `
+      <div class="p-4 space-y-2">
+        <h3 class="text-lg font-bold text-indigo-700">${course.title}</h3>
+        <p class="text-sm text-gray-600">${course.description}</p>
+        <button class="enroll-btn w-full px-4 py-2 mt-2 text-white rounded bg-indigo-500 hover:bg-indigo-600 transition-colors">Enroll</button>
+      </div>
+    `;
+    
+    const enrollBtn = card.querySelector('.enroll-btn');
+    enrollBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      enrollCourse(course._id);
+    });
+    
+    newCoursesEl.appendChild(card);
+  });
+
+  // Update show more/less buttons visibility
+  showMoreBtn.classList.toggle('hidden', filteredCourses.length <= visibleCourses);
+  showLessBtn.classList.toggle('hidden', visibleCourses <= 6);
+}
+
+// --- Enroll in a course ---
+async function enrollCourse(courseId) {
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
+    showLoader(true);
+    try {
+        const res = await fetch(`${BASE_URL}/api/courses/enroll`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ courseId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            await fetchUserCourses(); // Refresh enrolled courses
+            fetchAllCourses(); // Refresh new courses
+        } else {
+            alert(data.error || 'Failed to enroll');
+        }
+    } catch (err) {
+        alert('Failed to enroll');
+    } finally {
+        showLoader(false);
+    }
+}
+
+// --- Unenroll from a course ---
+async function unenrollCourse(courseId) {
+    showLoader(true);
+    try {
+        const res = await fetch(`${BASE_URL}/api/courses/unenroll`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ courseId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            await fetchUserCourses();
+            fetchAllCourses();
+        } else {
+            alert(data.error || 'Failed to unenroll');
+        }
+    } catch (err) {
+        alert('Failed to unenroll');
+    } finally {
+        showLoader(false);
+    }
+}
+
+// --- Logout function ---
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = '/login.html';
+}
+
+// --- Search function ---
+function searchCourses(query) {
+  const searchTerm = query.toLowerCase().trim();
+  
+  // Store the original courses if not already stored
+  if (!window.originalCourses) {
+    window.originalCourses = [...allCourses];
+  }
+  
+  if (searchTerm === '') {
+    allCourses = [...window.originalCourses];
+  } else {
+    allCourses = window.originalCourses.filter(course => 
+      !enrolledIds.includes(course._id) && (
+        course.title.toLowerCase().includes(searchTerm) ||
+        course.description.toLowerCase().includes(searchTerm)
+      )
+    );
+  }
+  
+  visibleCourses = 6; // Reset visible courses count
+  renderNewCourses();
+}
+
+// Add event listener for search input
+searchInput.addEventListener('input', (e) => {
+  // Clear the previous timeout
+  if (searchTimeout) {
+    clearTimeout(searchTimeout);
+  }
+  
+  // Set a new timeout to avoid too many renders
+  searchTimeout = setTimeout(() => {
+    if (e.target.value) {
+      searchCourses(e.target.value);
+    } else {
+      // If search is cleared, fetch all courses again
+      fetchAllCourses();
+    }
+  }, 300);
+});
+
+// Add these event listeners after your existing event listeners
+showMoreBtn.addEventListener('click', () => {
+  visibleCourses += 6;
+  renderNewCourses();
+});
+
+showLessBtn.addEventListener('click', () => {
+  visibleCourses = 6;
+  renderNewCourses();
+});
+
+userShowMoreBtn.addEventListener('click', () => {
+  visibleUserCourses += 6;
+  renderUserCourses();
+});
+
+userShowLessBtn.addEventListener('click', () => {
+  visibleUserCourses = 6;
+  renderUserCourses();
+});
+
+// --- Fetch recommendations for a course ---
+async function fetchRecommendations(courseId) {
+  const res = await fetch(`/api/learning-path/recommendations/${courseId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    const recDiv = document.getElementById('recommendedLessons');
+    if (data.recommended && data.recommended.length > 0) {
+      data.recommended.forEach(lesson => {
+        // Create and append lesson card to recDiv
+      });
+    }
+  }
+}
+
+// --- Initial load ---
+fetchUserCourses().then(fetchAllCourses).then(() => {
+  // Example: After fetching enrolled courses
+  allUserCourses.forEach(course => {
+    fetchRecommendations(course._id);
+  });
+});
+</script>
+
+</body>
+</html>

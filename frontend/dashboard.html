@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | AdaptiveLearn</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #6366f1;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg);}
+    100% { transform: rotate(360deg);}
+}
+</style>
+</head>
+<body class="bg-gradient-to-br from-sky-100 via-indigo-100 to-purple-200 min-h-screen text-gray-800 font-sans overflow-x-hidden transition-colors duration-300 ease-in-out">
+
+  <!-- Header -->
+  <header class="flex justify-between items-center px-6 py-4 bg-white shadow fixed w-full top-0 z-10">
+    <button id="menuBtn" class="text-2xl text-indigo-600 hover:scale-105 transition-transform duration-200 focus:outline-none">&#9776;</button>
+    <button onclick="window.location.href='/home.html'" class="text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none font-medium rounded-lg text-sm px-6 py-3 transition duration-300 ease-in-out shadow-lg hover:shadow-xl transform hover:scale-105">
+      ← Back to Home
+    </button>
+  </header>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed top-0 left-0 w-64 h-full bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100 shadow-lg transform -translate-x-full transition-transform duration-300 z-30 p-6 space-y-6">
+    <button id="closeSidebar" class="text-xl text-red-500 font-bold absolute top-4 right-4 hover:text-red-600">&times;</button>
+    <nav class="space-y-4 mt-8">
+      <a href="/dashboard.html" class="block text-indigo-700 font-semibold text-lg hover:text-white hover:bg-indigo-500 px-4 py-2 rounded transition-all duration-200">Dashboard</a>
+      <a href="/home.html" class="block text-indigo-700 font-semibold text-lg hover:text-white hover:bg-indigo-500 px-4 py-2 rounded transition-all duration-200">Homepage</a>
+      <a href="#" class="block text-red-500 font-semibold text-lg hover:text-white hover:bg-red-500 px-4 py-2 rounded transition-all duration-200" onclick="logout()">Logout</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="pt-24 px-4 max-w-7xl mx-auto space-y-16">
+    <!-- User Profile Section -->
+    <section>
+      <h2 class="text-3xl font-bold text-indigo-700 mb-4">Your Profile</h2>
+      <div class="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-bold text-indigo-700" id="profileName"></h2>
+            <p class="text-gray-600" id="profileEmail"></p>
+            <p class="text-gray-600" id="profileRoll"></p>
+            <p class="text-gray-600" id="profileBranch"></p>
+            <p class="text-gray-600" id="profileYear"></p>
+          </div>
+          <button onclick="window.location.href='/profile.html'" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">Edit</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Enrolled Courses Section -->
+    <section>
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-3xl font-bold text-indigo-700">Your Enrolled Courses</h2>
+      </div>
+      <div id="courses" class="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+        <!-- Courses will be dynamically loaded here -->
+      </div>
+      <div class="flex justify-center mt-4 space-x-4">
+        <button id="showMoreBtn" class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-all">Show More</button>
+        <button id="showLessBtn" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 hidden transition-all">Show Less</button>
+      </div>
+    </section>
+
+    <!-- Achievements Section -->
+    <section>
+      <h2 class="text-3xl font-bold text-indigo-700 mb-4">Achievements</h2>
+      <div id="achievements" class="flex flex-wrap gap-4">
+        <p id="noAchievementsText" class="text-gray-600">No achievements yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded hidden transition-all duration-300 ease-in-out"></div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="bg-white p-6 rounded shadow-lg text-center transition-all">
+      <p id="modalTitle" class="mb-4 text-lg">Are you sure you want to unenroll from this course?</p>
+      <button id="confirmUnenroll" class="bg-red-500 text-white px-4 py-2 rounded mr-2 hover:bg-red-600 transition-all">Yes</button>
+      <button onclick="closeModal()" class="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400 transition-all">No</button>
+    </div>
+  </div>
+
+  <!-- Loader -->
+  <div id="loader" class="hidden fixed inset-0 bg-white/75 flex items-center justify-center z-50">
+    <div class="loader"></div>
+  </div>
+
+  <!-- JavaScript -->
+  <script>
+    const BASE_URL = 'http://localhost:5000';
+    let visibleCourses = 6;
+    let allCourses = [];
+    let courseIdToUnenroll;
+
+    function extractCourseNumber(title) {
+      const match = title?.match(/(\d+)/);
+      return match ? parseInt(match[1]) : Number.MAX_SAFE_INTEGER;
+    }
+
+    async function fetchDashboardData() {
+      try {
+        showLoader(true);
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/courses/my', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await res.json();
+        displayDashboardData(data);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        alert('An error occurred while loading the dashboard.');
+      } finally {
+        showLoader(false);
+      }
+    }
+
+    function displayDashboardData(data) {
+      document.getElementById('profileName').textContent = data.user.name;
+      document.getElementById('profileEmail').textContent = data.user.email;
+      document.getElementById('profileRoll').textContent = data.user.roll || 'N/A';
+      document.getElementById('profileBranch').textContent = data.user.branch || 'N/A';
+      document.getElementById('profileYear').textContent = data.user.year || 'N/A';
+
+      // Sort courses by title
+      allCourses = data.courses.sort((a, b) => a.title.localeCompare(b.title));
+      renderCourses();
+    }
+
+    function renderCourses() {
+      const container = document.getElementById('courses');
+      container.innerHTML = ''; // Clear existing courses
+
+      if (allCourses.length === 0) {
+        container.innerHTML = '<p class="text-gray-600">No courses found.</p>';
+        return;
+      }
+
+      allCourses.forEach(course => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition duration-300 cursor-pointer';
+        card.innerHTML = `
+          <a href="/course-details.html?courseId=${course._id}" class="block p-4 space-y-2">
+            <h3 class="text-lg font-bold text-indigo-700">${course.title}</h3>
+            <p class="text-sm text-gray-600">${course.description}</p>
+            <div class="h-2 bg-gray-200 rounded">
+              <div class="h-2 bg-indigo-600 rounded transition-all duration-300" style="width: ${course.progress.totalLessons ? (Array.isArray(course.progress.completedLessons) ? (course.progress.completedLessons.length / course.progress.totalLessons) * 100 : 0) : 0}%"></div>
+            </div>
+            <p class="text-sm text-gray-600 mt-1">${Array.isArray(course.progress?.completedLessons) ? course.progress.completedLessons.length : 0}/${course.progress.totalLessons || 0} Lessons Completed</p>
+          </a>
+        `;
+        container.appendChild(card);
+      });
+
+      document.getElementById('showMoreBtn').style.display = allCourses.length > visibleCourses ? 'inline-block' : 'none';
+      document.getElementById('showLessBtn').style.display = visibleCourses > 6 ? 'inline-block' : 'none';
+    }
+
+    document.getElementById('showMoreBtn').addEventListener('click', () => {
+      visibleCourses = Math.min(visibleCourses + 6, allCourses.length);
+      renderCourses();
+    });
+
+    document.getElementById('showLessBtn').addEventListener('click', () => {
+      visibleCourses = 6;
+      renderCourses();
+    });
+
+    function openModal(courseId) {
+      courseIdToUnenroll = courseId;
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('confirmModal').classList.add('hidden');
+    }
+
+    document.getElementById('confirmUnenroll').addEventListener('click', async () => {
+      const token = localStorage.getItem('token');
+      try {
+        const res = await fetch(`${BASE_URL}/api/courses/${courseIdToUnenroll}/unenroll`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const result = await res.json();
+        if (res.ok) {
+          allCourses = allCourses.filter(item => item.course._id !== courseIdToUnenroll);
+          visibleCourses = Math.min(visibleCourses, allCourses.length);
+          renderCourses();
+          showToast('Unenrolled successfully');
+        } else {
+          alert(result.error || 'Failed to unenroll');
+        }
+      } catch (err) {
+        console.error('Unenroll error:', err);
+        alert('An error occurred');
+      }
+      closeModal();
+    });
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    document.getElementById('menuBtn').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('-translate-x-full');
+    });
+
+    document.getElementById('closeSidebar').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+    });
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = '/login.html';
+    }
+
+    function showLoader(show) {
+        document.getElementById('loader').classList.toggle('hidden', !show);
+    }
+
+    async function loadDashboardProfile() {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/profile', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('profileName').textContent = data.name;
+        document.getElementById('profileEmail').textContent = data.email;
+        document.getElementById('profileRoll').textContent = data.rollNumber ? `Roll No: ${data.rollNumber}` : '';
+        document.getElementById('profileBranch').textContent = data.branch ? `Branch: ${data.branch}` : '';
+        document.getElementById('profileYear').textContent = data.year ? `Year: ${data.year}` : '';
+      }
+    }
+    window.onload = () => {
+      fetchDashboardData();
+      loadDashboardProfile();
+    };
+  </script>
+</body>
+</html>

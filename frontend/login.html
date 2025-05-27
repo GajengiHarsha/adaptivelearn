@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login | AdaptiveLearn</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-tr from-indigo-100 via-sky-100 to-purple-200 flex items-center justify-center font-sans">
+  <div class="relative bg-white p-8 rounded-2xl shadow-xl w-full max-w-md space-y-6 transition-all" id="auth-box">
+    <h1 class="text-4xl font-extrabold text-center text-indigo-600 tracking-tight">AdaptiveLearn</h1>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="hidden absolute inset-0 bg-white/70 flex items-center justify-center z-10 rounded-2xl">
+      <div class="loader border-4 border-gray-200 border-t-4 border-indigo-600 rounded-full w-12 h-12 animate-spin"></div>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" class="space-y-4">
+      <input type="email" id="loginEmail" placeholder="Email" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+      <div class="relative">
+        <input type="password" id="loginPassword" placeholder="Password" class="w-full p-3 pr-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+        <img src="assets/icons/eye-off.svg" alt="Toggle Password" id="toggleLoginPassword" class="w-5 h-5 absolute right-3 top-3 cursor-pointer" />
+      </div>
+      <div class="flex justify-between text-sm text-indigo-600">
+        <button type="button" onclick="showForm('signupForm')" class="hover:underline">Create Account</button>
+        <button type="button" onclick="showForm('forgotForm')" class="hover:underline">Forgot Password?</button>
+      </div>
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-3 rounded-lg font-medium">Login</button>
+    </form>
+
+    <!-- Sign Up Form -->
+    <form id="signupForm" class="space-y-4 hidden">
+      <input type="text" id="signupName" placeholder="Full Name" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+      <input type="email" id="signupEmail" placeholder="Email" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+      <div class="relative">
+        <input type="password" id="signupPassword" placeholder="Password" class="w-full p-3 pr-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+        <img src="assets/icons/eye-off.svg" alt="Toggle Password" id="toggleSignupPassword" class="w-5 h-5 absolute right-3 top-3 cursor-pointer" />
+      </div>
+      <div class="relative">
+        <input type="password" id="signupConfirm" placeholder="Confirm Password" class="w-full p-3 pr-10 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+        <img src="assets/icons/eye-off.svg" alt="Toggle Password" id="toggleSignupConfirm" class="w-5 h-5 absolute right-3 top-3 cursor-pointer" />
+      </div>      
+      <button type="button" onclick="showForm('loginForm')" class="text-sm text-indigo-600 hover:underline">Back to Login</button>
+      <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-medium">Sign Up</button>
+    </form>
+
+    <!-- Forgot Password Form -->
+    <form id="forgotForm" class="space-y-4 hidden">
+      <input type="email" id="forgotEmail" placeholder="Enter your email" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:outline-none" required />
+      <button type="button" onclick="showForm('loginForm')" class="text-sm text-indigo-600 hover:underline">Back to Login</button>
+      <button type="submit" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white p-3 rounded-lg font-medium">Reset Password</button>
+    </form>
+
+    <div class="text-center text-gray-400 text-sm font-medium">or</div>
+
+    <!-- Google Sign-In -->
+    <div class="flex flex-col items-center">
+      <div id="g_id_onload"
+           data-client_id="538141817624-u525qtmht0i9sc8htdcr2t9o12mudng8.apps.googleusercontent.com"
+           data-callback="handleGoogleResponse"
+           data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-shape="rectangular"
+           data-theme="outline"
+           data-text="signin_with"
+           data-size="large"
+           data-logo_alignment="left">
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-md hidden z-50"></div>
+
+  <!-- Styles -->
+  <style>
+    .loader {
+      border-color: #e0e0e0;
+      border-top-color: #4f46e5;
+    }
+  </style>
+
+  <!-- Scripts (keep as is) -->
+  <script>
+    // JS Code (unchanged, preserved from original to keep functionality)
+    const BASE_URL = 'http://localhost:5000';
+
+    function showForm(id) {
+      ['loginForm', 'signupForm', 'forgotForm'].forEach(formId => {
+        document.getElementById(formId).classList.add('hidden');
+      });
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    const toggleLoginPassword = document.getElementById('toggleLoginPassword');
+    const loginPassword = document.getElementById('loginPassword');
+    const toggleSignupPassword = document.getElementById('toggleSignupPassword');
+    const signupPassword = document.getElementById('signupPassword');
+
+    let isLoginVisible = false;
+    let isSignupVisible = false;
+
+    toggleLoginPassword.addEventListener('click', () => {
+      isLoginVisible = !isLoginVisible;
+      loginPassword.type = isLoginVisible ? 'text' : 'password';
+      toggleLoginPassword.src = isLoginVisible ? 'assets/icons/eye.svg' : 'assets/icons/eye-off.svg';
+    });
+
+    toggleSignupPassword.addEventListener('click', () => {
+      isSignupVisible = !isSignupVisible;
+      signupPassword.type = isSignupVisible ? 'text' : 'password';
+      toggleSignupPassword.src = isSignupVisible ? 'assets/icons/eye.svg' : 'assets/icons/eye-off.svg';
+    });
+
+    const toggleSignupConfirm = document.getElementById('toggleSignupConfirm');
+const signupConfirm = document.getElementById('signupConfirm');
+let isSignupConfirmVisible = false;
+
+toggleSignupConfirm.addEventListener('click', () => {
+  isSignupConfirmVisible = !isSignupConfirmVisible;
+  signupConfirm.type = isSignupConfirmVisible ? 'text' : 'password';
+  toggleSignupConfirm.src = isSignupConfirmVisible ? 'assets/icons/eye.svg' : 'assets/icons/eye-off.svg';
+});
+
+
+    function validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+
+    function validatePassword(password) {
+      const re = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      return re.test(password);
+    }
+
+    function showLoader(show) {
+      document.getElementById('loading').classList.toggle('hidden', !show);
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-md z-50 ${
+        isError ? 'bg-red-600' : 'bg-green-600'
+      } text-white`;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3000);
+    }
+
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('signupName').value;
+      const email = document.getElementById('signupEmail').value;
+      const password = document.getElementById('signupPassword').value;
+      const confirmPassword = document.getElementById('signupConfirm').value;
+
+      if (password !== confirmPassword) return alert('Passwords do not match');
+      if (!validateEmail(email)) return alert('Invalid email format');
+      if (!validatePassword(password)) return alert('Password must be at least 8 characters with a number & special character');
+
+      showLoader(true);
+      const res = await fetch(`${BASE_URL}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+      const data = await res.json();
+      showLoader(false);
+
+      if (res.ok) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+        window.location.href = '/home.html';
+      } else alert(data.error || 'Signup failed');
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      showLoader(true);
+      const res = await fetch(`${BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      showLoader(false);
+
+      if (res.ok) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('token', data.token);
+        window.location.href = '/home.html';
+      } else alert(data.error || 'Login failed');
+    });
+
+    document.getElementById('forgotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgotEmail').value;
+      if (!validateEmail(email)) return alert('Invalid email format');
+
+      showLoader(true);
+      const res = await fetch(`${BASE_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await res.json();
+      showLoader(false);
+
+      if (res.ok) {
+        alert('Password reset link sent to your email.');
+        showForm('loginForm');
+      } else {
+        console.error(data);
+        alert(data.error || 'Failed to send reset link.');
+      }
+    });
+
+    async function handleGoogleResponse(response) {
+      showLoader(true);
+      try {
+        const res = await fetch(`${BASE_URL}/api/auth/google-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: response.credential })
+        });
+        const data = await res.json();
+        showLoader(false);
+
+        if (res.ok) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.setItem('token', data.token);
+          window.location.href = '/home.html';
+        } else {
+          alert(data.error || 'Google login failed');
+        }
+      } catch (error) {
+        showLoader(false);
+        console.error(error);
+        alert('An error occurred. Please try again later.');
+      }
+    }
+  </script>
+</body>
+</html>

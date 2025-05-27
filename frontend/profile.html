@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Profile</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-sky-100 via-indigo-100 to-purple-200 min-h-screen">
+  <div class="max-w-xl mx-auto mt-10 bg-white rounded-xl shadow-md p-8">
+    <h2 class="text-2xl font-bold text-indigo-700 mb-4">Profile</h2>
+    <div id="profileStats" class="mb-6"></div>
+    <form id="profileForm" class="space-y-4">
+      <div>
+        <label class="block font-semibold">Name</label>
+        <input id="name" type="text" class="w-full px-3 py-2 border rounded" />
+      </div>
+      <div>
+        <label class="block font-semibold">Roll Number</label>
+        <input id="rollNumber" type="text" class="w-full px-3 py-2 border rounded" />
+      </div>
+      <div>
+        <label class="block font-semibold">Branch</label>
+        <input id="branch" type="text" class="w-full px-3 py-2 border rounded" />
+      </div>
+      <div>
+        <label class="block font-semibold">Year</label>
+        <input id="year" type="text" class="w-full px-3 py-2 border rounded" />
+      </div>
+      <div>
+        <label class="block font-semibold">Email</label>
+        <input id="email" type="email" class="w-full px-3 py-2 border rounded bg-gray-100" disabled />
+      </div>
+      <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">Update</button>
+    </form>
+  </div>
+  <script>
+const token = localStorage.getItem('token');
+async function loadProfile() {
+  const res = await fetch('/api/profile', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const data = await res.json();
+  if (res.ok) {
+    document.getElementById('name').value = data.name || '';
+    document.getElementById('email').value = data.email || '';
+    document.getElementById('rollNumber').value = data.rollNumber || '';
+    document.getElementById('branch').value = data.branch || '';
+    document.getElementById('year').value = data.year || '';
+  } else {
+    alert(data.error || 'Failed to load profile');
+  }
+}
+loadProfile();
+
+document.getElementById('profileForm').onsubmit = async function(e) {
+  e.preventDefault();
+  const name = document.getElementById('name').value;
+  const rollNumber = document.getElementById('rollNumber').value;
+  const branch = document.getElementById('branch').value;
+  const year = document.getElementById('year').value;
+  const res = await fetch('/api/profile', {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ name, rollNumber, branch, year })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    alert('Profile updated!');
+    loadProfile();
+  } else {
+    alert(data.error || 'Failed to update profile');
+  }
+};
+</script>
+</body>
+</html>

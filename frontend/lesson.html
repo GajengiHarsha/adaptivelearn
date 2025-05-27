@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lesson Details</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-sky-100 via-indigo-100 to-purple-200 min-h-screen text-gray-800 font-sans">
+    <div class="max-w-3xl mx-auto mt-8 bg-white rounded-xl shadow-md p-6">
+        <button onclick="window.history.back()" class="mb-4 text-indigo-600 hover:underline">&larr; Back</button>
+        <h1 id="lessonTitle" class="text-2xl font-bold mb-2"></h1>
+        <h2 id="lessonDescription" class="text-lg text-gray-600 mb-4"></h2>
+        <div id="lessonContent" class="prose"></div>
+        <button id="completeLessonBtn" class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+            Mark as Complete
+        </button>
+        <button id="takeQuizBtn" class="mt-6 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 hidden">
+          Take Quiz
+        </button>
+        <div id="quizContainer" class="mt-6"></div>
+    </div>
+    <div id="loader" class="fixed inset-0 bg-white/75 flex items-center justify-center z-50 hidden">
+        <div class="loader"></div>
+    </div>
+    <style>
+    .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #6366f1;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg);}
+        100% { transform: rotate(360deg);}
+    }
+    </style>
+    <script>
+        const BASE_URL = 'http://localhost:5000';
+        const urlParams = new URLSearchParams(window.location.search);
+        const lessonId = urlParams.get('lessonId');
+        const courseId = urlParams.get('courseId'); // Get courseId from URL
+        const token = localStorage.getItem('token');
+
+        function showLoader(show) {
+            document.getElementById('loader').classList.toggle('hidden', !show);
+        }
+
+        async function loadLesson() {
+            showLoader(true);
+            if (!lessonId) {
+                document.getElementById('lessonContent').innerHTML = '<span class="text-red-500">No lesson selected.</span>';
+                showLoader(false);
+                return;
+            }
+            try {
+                const res = await fetch(`${BASE_URL}/api/courses/lesson/${lessonId}`);
+                const lesson = await res.json();
+                if (lesson.error) throw new Error(lesson.error);
+
+                document.getElementById('lessonTitle').textContent = lesson.title;
+                document.getElementById('lessonDescription').textContent = lesson.description || '';
+                document.getElementById('lessonContent').innerHTML = lesson.content || '<i>No content available.</i>';
+            } catch (err) {
+                document.getElementById('lessonContent').innerHTML = `<span class="text-red-500">Failed to load lesson content.</span>`;
+            }
+            showLoader(false);
+        }
+        loadLesson();
+
+        document.getElementById('completeLessonBtn').onclick = async function() {
+            showLoader(true);
+            const token = localStorage.getItem('token');
+            if (!courseId || !lessonId) {
+                alert('Missing course or lesson information.');
+                showLoader(false);
+                return;
+            }
+            const res = await fetch('/api/progress/complete', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ courseId, lessonId, completed: true })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                updateCompleteButton();
+            } else {
+                alert(data.error || 'Failed to mark as complete');
+            }
+            showLoader(false);
+        };
+
+        async function updateCompleteButton() {
+            const token = localStorage.getItem('token');
+            if (!token || !courseId || !lessonId) return;
+            try {
+                const res = await fetch(`${BASE_URL}/api/courses/my`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (res.ok && Array.isArray(data.courses)) {
+                    const myCourse = data.courses.find(c => c._id === courseId);
+                    const completedLessons = myCourse?.progress?.completedLessons || [];
+                    const btn = document.getElementById('completeLessonBtn');
+                    if (completedLessons.includes(lessonId)) {
+                        btn.textContent = 'Completed';
+                        btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                        btn.disabled = true;
+                    } else {
+                        btn.textContent = 'Mark as Complete';
+                        btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                        btn.disabled = false;
+                    }
+                }
+            } catch (err) {
+                // ignore
+            }
+        }
+
+        async function checkQuiz() {
+          const res = await fetch(`/api/quiz/${lessonId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            document.getElementById('takeQuizBtn').classList.remove('hidden');
+          }
+        }
+        checkQuiz();
+
+        document.getElementById('takeQuizBtn').onclick = async function() {
+          const res = await fetch(`/api/quiz/${lessonId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok) {
+            alert('Quiz not found.');
+            return;
+          }
+          const quiz = await res.json();
+          renderQuiz(quiz);
+        };
+
+        function renderQuiz(quiz) {
+          const quizDiv = document.getElementById('quizContainer');
+          quizDiv.innerHTML = '';
+          quiz.questions.forEach((q, i) => {
+            const qDiv = document.createElement('div');
+            qDiv.className = 'mb-4';
+            qDiv.innerHTML = `<p class="font-semibold">${i + 1}. ${q.question}</p>`;
+            q.options.forEach((opt, j) => {
+              qDiv.innerHTML += `
+                <label class="block ml-4">
+                  <input type="radio" name="q${i}" value="${j}" class="mr-2"> ${opt}
+                </label>
+              `;
+            });
+            quizDiv.appendChild(qDiv);
+          });
+          quizDiv.innerHTML += `<button id="submitQuizBtn" class="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">Submit Quiz</button>`;
+          document.getElementById('submitQuizBtn').onclick = () => submitQuiz(quiz.questions.length);
+        }
+
+        async function submitQuiz(numQuestions) {
+          const answers = [];
+          for (let i = 0; i < numQuestions; i++) {
+            const selected = document.querySelector(`input[name="q${i}"]:checked`);
+            answers.push(selected ? parseInt(selected.value) : -1);
+          }
+          const res = await fetch('/api/quiz/submit', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ lessonId, answers })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            document.getElementById('quizContainer').innerHTML = `<div class="p-4 bg-green-100 rounded">You scored ${data.score} out of ${data.total}!</div>`;
+          } else {
+            alert(data.error || 'Quiz submission failed');
+          }
+        }
+
+        updateCompleteButton();
+
+        window.onunload = function() {
+          if (window.opener) {
+            window.opener.location.reload();
+          }
+        };
+    </script>
+</body>
+</html>
