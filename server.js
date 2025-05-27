@@ -68,6 +68,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
 
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
+
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
