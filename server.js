@@ -38,44 +38,31 @@ schedule.scheduleJob('0 * * * *', async () => {
 
 // API Routes
 app.use('/api/auth', require('./backend/routes/auth'));
-
-const courseRoutes = require('./backend/routes/course');
-app.use('/api/courses', courseRoutes);
-
+app.use('/api/courses', require('./backend/routes/course'));
 app.use('/api/enrollment', require('./backend/routes/enrollment'));
 app.use('/api/progress', require('./backend/routes/progress'));
 app.use('/api/dashboard', require('./backend/routes/dashboard'));
-
-const quizRoutes = require('./backend/routes/quiz');
-app.use('/api/quiz', quizRoutes);
-
-const learningPathRoutes = require('./backend/routes/learningPath');
-app.use('/api/learning-path', learningPathRoutes);
-
-const profileRoutes = require('./backend/routes/profile');
-app.use('/api/profile', profileRoutes);
+app.use('/api/quiz', require('./backend/routes/quiz'));
+app.use('/api/learning-path', require('./backend/routes/learningPath'));
+app.use('/api/profile', require('./backend/routes/profile'));
 
 // Serve static frontend files
-//app.use(express.static(path.join(__dirname, 'frontend')));
+app.use(express.static(path.join(__dirname, 'frontend')));
 
-// 404 for API endpoints that don’t exist
-app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'API endpoint not found' });
-});
-
-// SPA fallback - serve index.html for all other routes (frontend routing)
-/*
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
-});
-
-*/
-
+// Health check
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
 
+// 404 for API routes that don’t match
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+
+// Fallback to home.html for any frontend route
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
+});
 
 // Start server
 const PORT = process.env.PORT || 5000;
