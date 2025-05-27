@@ -59,10 +59,16 @@ app.use('/api', (req, res) => {
   res.status(404).json({ error: 'API endpoint not found' });
 });
 
-// Fallback to home.html for any frontend route
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
+// Serve login.html at the root URL
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
 });
+
+// Fallback for any unknown paths (e.g., SPA routing)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend', 'login.html'));
+});
+
 
 // Start server
 const PORT = process.env.PORT || 5000;
