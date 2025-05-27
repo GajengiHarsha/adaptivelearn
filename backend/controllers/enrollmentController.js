@@ -26,18 +26,10 @@ exports.enrollInCourse = async (req, res) => {
       return res.status(400).json({ error: 'User is already enrolled in this course.' });
     }
 
-    // Initialize progress with lesson IDs from the course
-    const progress = Array.isArray(course.lessons)
-      ? course.lessons.map((lesson) => ({
-          lessonId: lesson._id,
-          completed: false,
-        }))
-      : [];
-
-    // Add the course to the user's enrolledCourses
+    // Initialize progress as an empty array of completedLessons
     user.enrolledCourses.push({
       course: courseId,
-      progress, // Initialize progress with lesson objects
+      progress: { completedLessons: [] },
     });
 
     await user.save();
