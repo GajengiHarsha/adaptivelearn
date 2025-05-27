@@ -56,7 +56,7 @@ const profileRoutes = require('./backend/routes/profile');
 app.use('/api/profile', profileRoutes);
 
 // Serve static frontend files
-app.use(express.static(path.join(__dirname, 'frontend')));
+//app.use(express.static(path.join(__dirname, 'frontend')));
 
 // 404 for API endpoints that don’t exist
 app.use('/api', (req, res) => {
@@ -64,9 +64,13 @@ app.use('/api', (req, res) => {
 });
 
 // SPA fallback - serve index.html for all other routes (frontend routing)
+/*
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
 });
+
+*/
 
 app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
