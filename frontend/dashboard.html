@@ -111,6 +111,45 @@
       return match ? parseInt(match[1]) : Number.MAX_SAFE_INTEGER;
     }
 
+async function fetchUserProfile() {
+  try {
+    const token = localStorage.getItem('token');
+    const res = await fetch('/api/auth/profile', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!res.ok) {
+      console.error('Profile fetch failed with status:', res.status);
+      return; // Do not alert user for every issue
+    }
+
+    const user = await res.json();
+
+    if (!user || !user.name || !user.email) {
+      console.warn('User profile data incomplete:', user);
+      return;
+    }
+
+    displayUserProfile(user);
+  } catch (err) {
+    console.error('Error fetching user profile:', err);
+    // Optionally show toast instead of alert
+    showToast('Failed to load profile.', true);
+  }
+}
+
+
+function displayUserProfile(user) {
+  document.getElementById('profileName').textContent = user.name;
+  document.getElementById('profileEmail').textContent = user.email;
+  document.getElementById('profileRoll').textContent = user.roll || 'N/A';
+  document.getElementById('profileBranch').textContent = user.branch || 'N/A';
+  document.getElementById('profileYear').textContent = user.year || 'N/A';
+}
+
+
     async function fetchDashboardData() {
       try {
         showLoader(true);
@@ -122,7 +161,7 @@
           }
         });
         const data = await res.json();
-        displayDashboardData(data);
+        displayDashboardCourses(data); // rename the function
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         alert('An error occurred while loading the dashboard.');
@@ -131,17 +170,11 @@
       }
     }
 
-    function displayDashboardData(data) {
-      document.getElementById('profileName').textContent = data.user.name;
-      document.getElementById('profileEmail').textContent = data.user.email;
-      document.getElementById('profileRoll').textContent = data.user.roll || 'N/A';
-      document.getElementById('profileBranch').textContent = data.user.branch || 'N/A';
-      document.getElementById('profileYear').textContent = data.user.year || 'N/A';
+    function displayDashboardCourses(data) {
+  allCourses = data.courses.sort((a, b) => a.title.localeCompare(b.title));
+  renderCourses();
+}
 
-      // Sort courses by title
-      allCourses = data.courses.sort((a, b) => a.title.localeCompare(b.title));
-      renderCourses();
-    }
 
     function renderCourses() {
       const container = document.getElementById('courses');
@@ -217,12 +250,19 @@
       closeModal();
     });
 
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.remove('hidden');
-      setTimeout(() => toast.classList.add('hidden'), 3000);
-    }
+function showToast(message, isError = false) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg transition-all duration-300 ease-in-out z-50 ${
+    isError ? 'bg-red-600' : 'bg-green-600'
+  } text-white`;
+  toast.classList.remove('hidden');
+
+  setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 3000);
+}
+
 
     document.getElementById('menuBtn').addEventListener('click', () => {
       document.getElementById('sidebar').classList.remove('-translate-x-full');
@@ -259,6 +299,12 @@
       fetchDashboardData();
       loadDashboardProfile();
     };
+
+    window.addEventListener('DOMContentLoaded', () => {
+  fetchUserProfile();
+  fetchDashboardData();
+});
+
   </script>
 </body>
 </html>

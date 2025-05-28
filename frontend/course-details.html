@@ -46,6 +46,41 @@
         </nav>
     </aside>
 
+<!-- Arrow Toggle Button -->
+<button id="recommendToggle"
+  class="fixed top-[95%] right-0 transform -translate-y-1/2 z-50 
+         bg-indigo-600 text-white rounded-full p-3 shadow-lg 
+         transition-all duration-300 hover:bg-indigo-700"
+  aria-label="Toggle Recommended Content">
+  <svg id="recommendIcon" xmlns="http://www.w3.org/2000/svg"
+       class="h-6 w-6 transition-transform duration-300"
+       fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+</button>
+
+
+<!-- Right Sidebar Panel -->
+<aside id="recommendSidebar" class="fixed top-0 right-0 w-72 h-full bg-gradient-to-br from-pink-100 via-purple-100 to-indigo-100 shadow-lg transform translate-x-full transition-transform duration-300 z-30 p-4 space-y-4 overflow-y-auto">
+  <h2 class="text-xl font-bold text-indigo-700 border-b pb-2">Recommended Content</h2>
+
+  <!-- Placeholder recommended content -->
+  <div class="space-y-4">
+    <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
+      <h3 class="text-indigo-600 font-semibold text-lg">Lesson: Advanced JS</h3>
+      <p class="text-sm text-gray-600">Deep dive into closures and async patterns.</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
+      <h3 class="text-indigo-600 font-semibold text-lg">Tip: Stay Consistent</h3>
+      <p class="text-sm text-gray-600">Finish 1 lesson a day to maintain streaks.</p>
+    </div>
+    <div class="bg-white p-4 rounded-xl shadow hover:shadow-md transition">
+      <h3 class="text-indigo-600 font-semibold text-lg">Course: UI Design Basics</h3>
+      <p class="text-sm text-gray-600">Explore UI fundamentals and responsive layouts.</p>
+    </div>
+  </div>
+</aside>
+
     <!-- Main Content -->
     <main class="max-w-4xl mx-auto p-6 space-y-8">
         <!-- Course Header -->
@@ -65,6 +100,13 @@
             <button id="enrollButton" class="w-full mt-4 px-6 py-3 rounded-lg text-white font-semibold transition-colors"></button>
         </section>
 
+        <!-- Take Quiz Button -->
+        <div class="mt-4">
+        <a id="takeQuizBtn" href="#" class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2 rounded-xl shadow-md transition duration-200">
+            Take Quiz
+        </a>
+        </div>
+
         <!-- Lessons Section -->
         <section class="bg-white rounded-xl shadow-lg p-6">
             <h3 class="text-xl font-semibold text-indigo-700 mb-4">Course Content</h3>
@@ -78,9 +120,17 @@
 const BASE_URL = window.location.origin;
 const token = localStorage.getItem('token');
 const courseId = new URLSearchParams(window.location.search).get('courseId');
-let isEnrolled = false;
-let completedLessons = [];
+const recommendToggleBtn = document.getElementById('recommendToggle');
+  const recommendSidebar = document.getElementById('recommendSidebar');
+  const recommendIcon = document.getElementById('recommendIcon');
+  let isRecommendOpen = false;
 
+  recommendToggleBtn.addEventListener('click', () => {
+    isRecommendOpen = !isRecommendOpen;
+    recommendSidebar.classList.toggle('translate-x-full', !isRecommendOpen);
+    recommendIcon.style.transform = isRecommendOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+  });
+  
 function showLoader(show) {
     document.getElementById('loader').classList.toggle('hidden', !show);
 }
@@ -125,8 +175,9 @@ async function fetchCourseDetails() {
 
         displayCourseDetails(course);
     } catch (error) {
-        console.error('Error:', error);
-        alert('Failed to load course details');
+    console.error('Error:', error);
+    // Use a non-intrusive message instead of alert
+    document.getElementById('courseTitle').textContent = "Course details could not be loaded.";
     } finally {
         showLoader(false);
     }
@@ -135,10 +186,8 @@ async function fetchCourseDetails() {
 function displayCourseDetails(course) {
     document.getElementById('courseTitle').textContent = course.title;
     document.getElementById('courseDescription').textContent = course.description;
-    // Remove enroll button completely
     document.getElementById('enrollButton').style.display = 'none';
-    renderLessons(course.lessons || []);
-}
+    renderLessons(course.lessons || []);}
 
 function renderLessons(lessons) {
     const lessonList = document.getElementById('lessonList');
@@ -228,6 +277,17 @@ function updateProgressBar(totalLessons) {
 }
 
 fetchCourseDetails();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const courseId = new URLSearchParams(window.location.search).get('courseId');
+  if (courseId) {
+    const takeQuizBtn = document.getElementById('takeQuizBtn');
+    if (takeQuizBtn) {
+      takeQuizBtn.href = `quiz.html?courseId=${courseId}`;
+    }
+  }
+});
+
 
 window.onunload = function() {
   if (window.opener) {
